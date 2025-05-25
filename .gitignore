@@ -1,0 +1,101 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.log
+*.ipynb
+
+# Virtual environment
+.venv/
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+egss/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environments
+.env
+.env.local
+.env.*.local
+
+#direnv
+.direnv/
+
+# macOS
+.DS_Store
+
+# models/
+models/*.joblib
+models/*.pkl
+
+# data/ - se os dados forem grandes
+# data/
+
+# logs/
+logs/*
+
+# pyproject.toml lock file
+uv.lock
+
+# Additional rules
+tests/
+dataexample/
+trainingdata/ 
+docs/
+trainingdata/
+dataexample/
+docs/*
+docs
+
+# Dados processados (não versionar)
+data/processed/
+# data/raw/
+# datathon_decision/data/raw
+data/raw/*.json
+*/data/raw/*.json
+*/models/*
+*/data/processed/*
+
+# NÃO adicione arquivos grandes (>50MB) ou sensíveis ao repositório!
+# Para dados brutos, mantenha apenas exemplos pequenos em data/raw/ se necessário.
