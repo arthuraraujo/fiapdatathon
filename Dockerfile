@@ -1,14 +1,13 @@
-# Multi-stage Dockerfile otimizado para produção
+# Multi-stage Dockerfile ultra-otimizado para apenas 512MB RAM
 FROM python:3.12-slim AS base
 
-# Instalar dependências do sistema (apenas uma vez)
+# Instalar apenas o essencial
 RUN apt-get update && apt-get install -y \
-    build-essential \
     curl \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Instalar UV (versão específica para cache)
+# Instalar UV
 RUN pip install --no-cache-dir uv==0.4.18
 
 WORKDIR /app
@@ -16,86 +15,93 @@ WORKDIR /app
 # === STAGE 1: Dependencies ===
 FROM base AS deps
 
-# Copiar apenas arquivos de dependências primeiro (melhor cache)
 COPY pyproject.toml uv.lock* ./
 
 RUN uv venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH" 
 
-# TENTATIVA DE INSTALAÇÃO MAIS FORTE:
-# Install all Python dependencies, including gunicorn, in this stage
-RUN echo "Attempting to install packages (including gunicorn) into venv: /opt/venv" && \
-    uv pip install --no-cache-dir flask flask-restx pandas scikit-learn joblib numpy python-dateutil gunicorn==21.2.0 && \
-    echo "Listing /opt/venv/lib/python3.12/site-packages/ after install:" && \
-    ls -l /opt/venv/lib/python3.12/site-packages/flask* && \
-    echo "Verifying gunicorn installation in deps stage:" && \
-    ls -l /opt/venv/bin/gunicorn && \
-    /opt/venv/bin/gunicorn --version
+# Instalar dependências com versões mais leves quando possível
+RUN uv pip install --no-cache-dir \
+    flask==2.3.3 \
+    flask-restx==1.2.0 \
+    pandas==2.0.3 \
+    scikit-learn==1.3.0 \
+    joblib==1.3.2 \
+    numpy==1.24.4 \
+    python-dateutil==2.8.2 \
+    gunicorn==21.2.0
 
 # === STAGE 2: Production ===
-# Lembre-se do WORKDIR /app herdado do base
 FROM base AS production
 
 COPY --from=deps /opt/venv /opt/venv
 
-# Mantém o PATH configurado para o venv
+# Configurações críticas para 512MB
 ENV PATH="/opt/venv/bin:$PATH"
-
-# Gunicorn is already installed from the deps stage.
-# We can add a check to ensure it's present.
-RUN echo "Checking for gunicorn in copied venv:" && \
-    ls -l /opt/venv/bin/gunicorn && \
-    /opt/venv/bin/gunicorn --version || (echo "Gunicorn not found in /opt/venv/bin after copy!"; exit 1)
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONHASHSEED=random
+# Limitar uso de memória do Python
+ENV MALLOC_TRIM_THRESHOLD_=100000
+ENV MALLOC_MMAP_THRESHOLD_=100000
+# Configurações para otimizar garbage collection
+ENV PYTHONGC=1
 
 RUN mkdir -p logs models data/processed data/raw
 
-# 1. Create the 'app' user FIRST
 RUN useradd --create-home --shell /bin/bash app
-
-# 2. THEN, give permission to the 'app' user for the directories
 RUN chown -R app:app logs models data
 
 USER app
-# Definir WORKDIR após USER app
 WORKDIR /app
 
 COPY --chown=app:app datathon_decision/ ./datathon_decision/
-# Se o pyproject.toml for necessário em runtime
 COPY --chown=app:app pyproject.toml ./
 
-# DEBUGGING COMO USUÁRIO 'app' (ajustado para verificar o gunicorn do venv)
-RUN echo "DEBUGGING AS USER $(whoami) IN $(pwd)" && \
-    echo "PATH IS: $PATH" && \
-    echo "WHICH PYTHON: $(which python)" && \
-    echo "PYTHON VERSION: $(python --version)" && \
-    echo "WHICH PIP (should be venv): $(which pip)" && \
-    echo "PIP VERSION: $(pip --version)" && \
-    echo "LOCATION OF GUNICORN (from which): $(which gunicorn)" && \
-    echo "LISTING /opt/venv/bin/gunicorn (as app user): " && ls -l /opt/venv/bin/gunicorn && \
-    echo "VERSION OF /opt/venv/bin/gunicorn (as app user): " && /opt/venv/bin/gunicorn --version && \
-    echo "TRYING TO IMPORT FLASK WITH PYTHON FROM VENV (as app user):" && \
-    python -c "import flask; print('Flask version:', flask.__version__)"
+# Pré-compilar bytecode para economizar RAM na inicialização
+RUN python -m compileall -q datathon_decision/
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+# Teste básico de importação
+RUN python -c "
+import sys
+import os
+print('Testing basic imports...')
+try:
+    import flask
+    print(f'✅ Flask: {flask.__version__}')
+    import pandas as pd
+    print(f'✅ Pandas: {pd.__version__}')
+    # Não importar o app completo aqui para economizar memória
+    print('✅ Basic imports successful')
+except Exception as e:
+    print(f'❌ Import error: {e}')
+    sys.exit(1)
+"
+
+# Health check com timeout maior
+HEALTHCHECK --interval=60s --timeout=30s --start-period=60s --retries=2 \
     CMD curl -f http://localhost:5050/api/health || exit 1
 
 LABEL org.opencontainers.image.title="Datathon Decision API"
 LABEL org.opencontainers.image.description="ML API for recruitment decisions"
-LABEL org.opencontainers.image.source="https://github.com/arthuraraujo/fiapdatathon"
 
 EXPOSE 5050
 
-# 2. CHAMAR EXPLICITAMENTE O GUNICORN DO VENV NO CMD
-# This is correct as PATH is set to include /opt/venv/bin,
-# but being explicit with /opt/venv/bin/gunicorn is safer.
+# Configuração ULTRA-CONSERVADORA para 512MB
 CMD ["/opt/venv/bin/gunicorn", \
      "--bind", "0.0.0.0:5050", \
-     "--workers", "2", \
+     "--workers", "1", \
      "--worker-class", "sync", \
-     "--timeout", "30", \
+     "--timeout", "300", \
+     "--graceful-timeout", "60", \
      "--keep-alive", "2", \
-     "--max-requests", "1000", \
-     "--max-requests-jitter", "100", \
+     "--max-requests", "50", \
+     "--max-requests-jitter", "10", \
+     "--worker-tmp-dir", "/dev/shm", \
      "--access-logfile", "-", \
      "--error-logfile", "-", \
+     "--log-level", "warning", \
+     "--limit-request-line", "2048", \
+     "--limit-request-fields", "50", \
+     "--limit-request-field-size", "2048", \
      "datathon_decision.src.app:app"]
