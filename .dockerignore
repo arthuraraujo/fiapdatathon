@@ -36,6 +36,26 @@ Dockerfile
 README.md
 notebooks/
 docs/
+# Arquivos temporários da Action
+training_output.txt
+metrics.json
+dashboard.html
+metrics_history/
+
+# GitHub
+.github/
+.git/
+
+# Documentação
+README.md
+docs/
+
+# Arquivos de desenvolvimento
+.vscode/
+.idea/
+*.pyc
+__pycache__/
+.pytest_cache/
 # Adicione outros arquivos/pastas que não precisam ir para a imagem
 trainingdata/
 dataexample/

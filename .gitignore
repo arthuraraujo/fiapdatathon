@@ -88,6 +88,11 @@ dataexample/
 docs/*
 docs
 
+training_output.txt
+metrics.json
+dashboard.html
+metrics_history/
+
 # Dados processados (não versionar)
 data/processed/
 # data/raw/
