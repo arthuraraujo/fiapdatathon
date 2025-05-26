@@ -22,34 +22,28 @@ COPY pyproject.toml uv.lock* ./
 RUN uv venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Instalar dependências (usando lock se existir)
-# RUN uv pip install --system flask flask-restx pandas scikit-learn joblib numpyx
-# RUN uv pip install flask flask-restx pandas scikit-learn joblib numpy python-dateutil
-
-# RUN uv pip install --system -e .
-
 # TENTATIVA DE INSTALAÇÃO MAIS FORTE:
 RUN echo "Attempting to install packages into venv: /opt/venv" && \
     uv pip install flask flask-restx pandas scikit-learn joblib numpy python-dateutil && \
     echo "Listing /opt/venv/lib/python3.12/site-packages/ after install:" && \
-    ls -l /opt/venv/lib/python3.12/site-packages/flask* 
-
-# === STAGE 2: Production ===
+    ls -l /opt/venv/lib/python3.12/site-packages/flask* # === STAGE 2: Production ===
 FROM base AS production # Lembre-se do WORKDIR /app herdado do base
 
 COPY --from=deps /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH" # Mantém o PATH configurado para o venv
+
+# CORREÇÃO AQUI: Comentário movido para a linha anterior
+# Mantém o PATH configurado para o venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 # 1. GARANTIR QUE GUNICORN SEJA INSTALADO NO VENV USANDO O PIP DO VENV
-#    Remova qualquer linha "RUN uv pip install flask flask-restx" que você possa ter adicionado aqui.
-#    Flask deve vir apenas do stage 'deps'.
 RUN echo "Attempting to install gunicorn into venv: /opt/venv" && \
     /opt/venv/bin/pip install --no-cache-dir gunicorn==21.2.0 && \
     echo "Checking for gunicorn in venv:" && \
     ls -l /opt/venv/bin/gunicorn
 
 RUN mkdir -p logs models data/processed data/raw
-RUN chown -R app:app logs models data # Permissão para o usuário app
+# Dê permissão ao 'app' user para os diretórios que ele possa precisar escrever
+RUN chown -R app:app logs models data
 
 RUN useradd --create-home --shell /bin/bash app
 USER app
