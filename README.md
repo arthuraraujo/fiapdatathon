@@ -8,11 +8,9 @@ Nick(Discord): afaraujo
 
 RM: rm357855
 
-
-
-----
 ---
 
+---
 
 ## Datathon Decision - IA para Otimização de Recrutamento
 
@@ -41,6 +39,7 @@ Este projeto implementa uma solução baseada em Inteligência Artificial para o
 ## Justificativa do Problema
 
 A Decision enfrenta desafios como:
+
 - Encontrar o candidato ideal de forma eficiente.
 - Falta de padronização nas entrevistas.
 - Dificuldade em avaliar engajamento/motivação dos candidatos.
@@ -117,6 +116,7 @@ datathon-decision/
 ### Instalação do Git LFS
 
 **macOS:**
+
 ```bash
 # Usando Homebrew
 brew install git-lfs
@@ -125,12 +125,14 @@ brew install git-lfs
 ```
 
 **Linux (Ubuntu/Debian):**
+
 ```bash
 sudo apt update
 sudo apt install git-lfs
 ```
 
 **Windows:**
+
 ```bash
 # Usando chocolatey
 choco install git-lfs
@@ -141,24 +143,27 @@ choco install git-lfs
 ### Passos de Configuração
 
 1. **Clone o repositório:**
+
    ```bash
    git clone https://github.com/arthuraraujo/fiapdatathon.git
    cd datathon-decision
    ```
 
 2. **Configure o Git LFS (primeiro uso):**
+
    ```bash
    # Verificar se está instalado
    git lfs version
-   
+
    # Configurar LFS no repositório (se ainda não configurado)
    git lfs install
-   
+
    # Baixar arquivos LFS (se já existirem no repositório)
    git lfs pull
    ```
 
 3. **Crie e ative o ambiente virtual:**
+
    ```bash
    uv venv
    source .venv/bin/activate  # Linux/macOS
@@ -166,6 +171,7 @@ choco install git-lfs
    ```
 
 4. **Instale as dependências:**
+
    ```bash
    uv pip install -r pyproject.toml
    # ou, se empacotado:
@@ -173,10 +179,11 @@ choco install git-lfs
    ```
 
 5. **Verificar arquivos de dados:**
+
    ```bash
    # Verificar se os arquivos JSON estão disponíveis
    ls -la data/raw/
-   
+
    # Se não estiverem, eles serão baixados automaticamente pelo Git LFS
    # durante o clone ou com git lfs pull
    ```
@@ -190,6 +197,7 @@ choco install git-lfs
 ```bash
 uv run python -m datathon_decision.src.preprocess_utils data/raw/
 ```
+
 - Saída: `data/processed/train_data.joblib`, `data/processed/val_data.joblib`, `models/preprocessor_objects.joblib`, `models/training_columns.joblib`
 
 ### 2. Treinamento do Modelo
@@ -197,6 +205,7 @@ uv run python -m datathon_decision.src.preprocess_utils data/raw/
 ```bash
 uv run python -m datathon_decision.src.train_pipeline
 ```
+
 - Saída: `models/random_forest_model.joblib`
 - Métricas impressas no console (Acurácia, Precisão, Recall, F1, ROC AUC)
 
@@ -205,6 +214,7 @@ uv run python -m datathon_decision.src.train_pipeline
 ```bash
 uv run python -m datathon_decision.src.app
 ```
+
 - API: [http://localhost:5050](http://localhost:5050)
 - Swagger: [http://localhost:5050/docs](http://localhost:5050/docs)
 
@@ -228,6 +238,7 @@ uv run python -m datathon_decision.src.app
 Todos os endpoints são prefixados com `/api`.
 
 ### `GET /api/health`
+
 - Verifica a saúde da API.
 - Resposta:
   ```json
@@ -235,6 +246,7 @@ Todos os endpoints são prefixados com `/api`.
   ```
 
 ### `POST /api/predict`
+
 - Recebe um payload JSON com informações de candidato e vaga.
 - Exemplo de payload:
   ```json
@@ -284,6 +296,7 @@ Todos os endpoints são prefixados com `/api`.
 ```bash
 uv run pytest
 ```
+
 - Testes em `datathon_decision/tests/test_preprocess_utils.py`
 
 ### Testes de Endpoint
@@ -293,6 +306,7 @@ bash test_api_examples.sh
 # Para testar uma URL diferente:
 # bash test_api_examples.sh http://sua-api-url/api/predict
 ```
+
 - Requer `jq` instalado.
 - Usa exemplos de `docs/payload_examples.json`.
 
@@ -325,15 +339,83 @@ bash test_api_examples.sh
 - **Problemas de dependências:** Use sempre UV e Python 3.12.
 - **Logs não aparecem:** Verifique permissões da pasta `logs/` e o volume no Docker.
 
-### Problemas com Git LFS
+### ⚠️ Problemas com Git LFS - IMPORTANTE
 
-- **Arquivos grandes não baixaram:** Execute `git lfs pull` para baixar arquivos LFS.
+**Problema mais comum: Arquivos JSON aparecem como "pointer files" ao invés do conteúdo real**
+
+Se você ver algo como:
+
+```
+version https://git-lfs.github.com/spec/v1
+oid sha256:55061c1e4c6ff820ff84e3b222c022a818eb145e6bb5dfd2d3d3487c3854decc
+size 203538441
+```
+
+Isso significa que os arquivos LFS não foram baixados corretamente. **Soluções:**
+
+1. **Verificar se o Git LFS está instalado:**
+
+   ```bash
+   git lfs version
+   ```
+
+   Se não estiver instalado, siga as [instruções de instalação](#instalação-do-git-lfs) acima.
+
+2. **Configurar o Git LFS no repositório:**
+
+   ```bash
+   git lfs install
+   ```
+
+3. **Baixar os arquivos LFS:**
+
+   ```bash
+   git lfs pull
+   ```
+
+   Ou para baixar apenas os arquivos de dados:
+
+   ```bash
+   git lfs pull --include="datathon_decision/data/raw/*"
+   ```
+
+4. **Se ainda não funcionar, force o fetch:**
+
+   ```bash
+   git lfs fetch --all
+   git lfs checkout
+   ```
+
+5. **Verificar se os arquivos foram baixados:**
+
+   ```bash
+   git lfs ls-files
+   # Deve mostrar os arquivos JSON grandes
+
+   # Verificar o conteúdo real (deve mostrar JSON, não pointer)
+   head -5 data/raw/applicants.json
+   ```
+
+**Para clones futuros do repositório:**
+
+```bash
+git clone <url-do-repo>
+cd <nome-do-repo>
+git lfs pull  # Baixa os arquivos LFS após o clone
+```
+
+**Outros problemas de Git LFS:**
+
 - **Erro "git lfs not found":** Instale o Git LFS conforme instruções acima.
-- **Arquivos aparecem como ponteiros:** Certifique-se de que o Git LFS está configurado (`git lfs install`).
 - **Problemas de autenticação:** Configure suas credenciais do GitHub:
   ```bash
   git config --global credential.helper store
   # ou use token de acesso pessoal
+  ```
+- **Verificar configuração do LFS:**
+  ```bash
+  git lfs env  # Mostra configuração atual
+  cat .gitattributes  # Mostra quais tipos de arquivo são rastreados
   ```
 
 ### Verificações de Git LFS
@@ -358,6 +440,7 @@ Este projeto utiliza **Git LFS (Large File Storage)** para gerenciar arquivos de
 ### Arquivos Gerenciados pelo LFS
 
 Os seguintes tipos de arquivo são automaticamente gerenciados pelo Git LFS:
+
 - `data/raw/*.json` - Dados brutos de treinamento
 - `*/data/raw/*.json` - Dados em subdiretórios
 
@@ -380,6 +463,7 @@ git lfs env
 ### Para Desenvolvedores
 
 **Adicionando novos arquivos grandes:**
+
 ```bash
 # Configurar tracking para novos tipos de arquivo
 git lfs track "*.pkl"
@@ -396,6 +480,7 @@ git push
 ```
 
 **Clonando o repositório:**
+
 ```bash
 # Clone normal já baixa arquivos LFS automaticamente
 git clone <url-do-repositorio>
@@ -419,18 +504,20 @@ git lfs pull
 
 ### Deploy
 
-- **Desenvolvimento Local:** 
+- **Desenvolvimento Local:**
+
   1. Clone o repositório (arquivos LFS baixam automaticamente)
   2. Treine o modelo localmente
   3. Execute a API para testes
 
 - **Deploy em Produção:**
+
   1. Configure Git LFS no ambiente de CI/CD
   2. Treine o modelo no pipeline
   3. Construa a imagem Docker com modelo incluído
   4. Deploy da imagem
 
-- **GitHub Actions:** 
+- **GitHub Actions:**
   ```yaml
   - name: Checkout with LFS
     uses: actions/checkout@v4
@@ -441,9 +528,6 @@ git lfs pull
 ### Compartilhamento de Dados
 
 Para compartilhar dados ou modelos grandes entre ambientes:
+
 - **Desenvolvimento:** Use Git LFS (incluído no repositório)
 - **Produção:** Considere serviços externos (S3, Google Cloud Storage, etc) para arquivos muito grandes (>1GB)
-
----
-
-Para dúvidas, consulte a documentação Swagger em `/docs` ou abra uma issue no repositório.
