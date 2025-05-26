@@ -20,7 +20,7 @@ FROM base AS deps
 COPY pyproject.toml uv.lock* ./
 
 RUN uv venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH" # Set PATH for this stage, uv pip will use it
+ENV PATH="/opt/venv/bin:$PATH" 
 
 # TENTATIVA DE INSTALAÇÃO MAIS FORTE:
 # Install all Python dependencies, including gunicorn, in this stage
