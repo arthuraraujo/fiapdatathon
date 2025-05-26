@@ -51,6 +51,9 @@ jobs:
       run: |
         uv sync
         
+        # Preparar requirements.txt para Docker
+        uv export --format requirements-txt --no-hashes > requirements.txt
+        
         # Verificar se os arquivos LFS foram baixados corretamente
         echo "🔍 Checking Git LFS files..."
         echo "Files in raw data directory:"
@@ -83,7 +86,7 @@ jobs:
         uv run python -m datathon_decision.src.train_pipeline > training_output.txt 2>&1
 
         # Extract metrics to JSON
-        python -c "import json; import re; from datetime import datetime; f = open('training_output.txt', 'r'); output = f.read(); f.close(); accuracy_match = re.search(r'Acurácia: ([\\d.]+)', output); precision_match = re.search(r'Precisão: ([\\d.]+)', output); recall_match = re.search(r'Recall: ([\\d.]+)', output); f1_match = re.search(r'F1: ([\\d.]+)', output); roc_auc_match = re.search(r'ROC AUC: ([\\d.]+)', output); shapes_match = re.search(r'Shapes: X_train=\\((\\d+), (\\d+)\\)', output); metrics = {'timestamp': datetime.now().isoformat(), 'commit_sha': '${{ github.sha }}', 'branch': '${{ github.ref_name }}', 'accuracy': float(accuracy_match.group(1)) if accuracy_match else None, 'precision': float(precision_match.group(1)) if precision_match else None, 'recall': float(recall_match.group(1)) if recall_match else None, 'f1_score': float(f1_match.group(1)) if f1_match else None, 'roc_auc': float(roc_auc_match.group(1)) if roc_auc_match else None, 'train_samples': int(shapes_match.group(1)) if shapes_match else None, 'features_count': int(shapes_match.group(2)) if shapes_match else None}; json.dump(metrics, open('metrics.json', 'w'), indent=2); print(f'Metrics saved: {metrics}')"
+        python -c "import json; import re; from datetime import datetime; output = open('training_output.txt').read(); accuracy_match = re.search(r'Acurácia: ([\\d.]+)', output); precision_match = re.search(r'Precisão: ([\\d.]+)', output); recall_match = re.search(r'Recall: ([\\d.]+)', output); f1_match = re.search(r'F1: ([\\d.]+)', output); roc_auc_match = re.search(r'ROC AUC: ([\\d.]+)', output); shapes_match = re.search(r'Shapes: X_train=\\((\\d+), (\\d+)\\)', output); metrics = {'timestamp': datetime.now().isoformat(), 'commit_sha': '${{ github.sha }}', 'branch': '${{ github.ref_name }}', 'accuracy': float(accuracy_match.group(1)) if accuracy_match else None, 'precision': float(precision_match.group(1)) if precision_match else None, 'recall': float(recall_match.group(1)) if recall_match else None, 'f1_score': float(f1_match.group(1)) if f1_match else None, 'roc_auc': float(roc_auc_match.group(1)) if roc_auc_match else None, 'train_samples': int(shapes_match.group(1)) if shapes_match else None, 'features_count': int(shapes_match.group(2)) if shapes_match else None}; json.dump(metrics, open('metrics.json', 'w'), indent=2); print(f'Metrics saved: {metrics}')"
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -110,12 +113,21 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        platforms: linux/amd64,linux/arm64
+        platforms: linux/amd64 
+        # platforms: linux/amd64,linux/arm64
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        # Cache otimizado
+        cache-from: |
+          type=gha
+          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:cache
+        cache-to: |
+          type=gha,mode=max
+          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:cache,mode=max
+        # Build args para otimização
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
 
     - name: Upload metrics and logs
       uses: actions/upload-artifact@v4
@@ -128,16 +140,8 @@ jobs:
 
     - name: Create metrics history
       run: |
-        # Download previous metrics if they exist
-        mkdir -p metrics_history
-        
-        # Add current metrics to history
-        if [ -f metrics.json ]; then
-          cp metrics.json metrics_history/metrics_${{ github.sha }}.json
-        fi
-        
-        # Create simple HTML dashboard
-        python generate_dashboard.py
+        echo "🎨 Generating metrics dashboard..."
+        python scripts/generate_dashboard.py "${{ github.sha }}" "${{ github.ref_name }}" "${{ github.run_id }}" "${{ github.repository }}"
 
     - name: Upload dashboard
       uses: actions/upload-artifact@v4

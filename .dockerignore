@@ -41,6 +41,7 @@ training_output.txt
 metrics.json
 dashboard.html
 metrics_history/
+scripts/
 
 # GitHub
 .github/
