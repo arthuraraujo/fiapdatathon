@@ -7,7 +7,6 @@ on:
       - 'README.md'
       - '*.md'
       - 'docs/**'
-      - 'logs/**'
   pull_request:
     branches: [ main, master ]
     paths-ignore:
@@ -29,6 +28,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        lfs: true  # 👈 Isso vai baixar os arquivos do Git LFS
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -47,15 +48,42 @@ jobs:
         mkdir -p datathon_decision/models
 
     - name: Install dependencies
-      run: uv sync
+      run: |
+        uv sync
+        
+        # Verificar se os arquivos LFS foram baixados corretamente
+        echo "🔍 Checking Git LFS files..."
+        echo "Files in raw data directory:"
+        ls -la datathon_decision/data/raw/
+        
+        echo "📊 Checking file sizes (LFS files should be > 1KB):"
+        du -h datathon_decision/data/raw/* || echo "No files found"
+        
+        echo "🎯 Checking specific JSON files from config:"
+        test -f datathon_decision/data/raw/applicants.json && echo "✅ applicants.json found" || echo "❌ applicants.json missing"
+        test -f datathon_decision/data/raw/vagas.json && echo "✅ vagas.json found" || echo "❌ vagas.json missing"  
+        test -f datathon_decision/data/raw/prospects.json && echo "✅ prospects.json found" || echo "❌ prospects.json missing"
 
     - name: Run data preprocessing
       run: |
+        echo "🔍 Checking directories before preprocessing..."
+        ls -la datathon_decision/data/
+        ls -la datathon_decision/data/raw/ || echo "Raw data directory is empty"
+        
+        echo "🚀 Running preprocessing..."
         uv run python -m datathon_decision.src.preprocess_utils datathon_decision/data/raw datathon_decision/data/processed
+        
+        echo "✅ Checking output after preprocessing..."
+        ls -la datathon_decision/data/processed/ || echo "Processed directory is empty"
+        ls -la datathon_decision/models/ || echo "Models directory is empty"
 
-    - name: Train model
+    - name: Train model and capture metrics
       run: |
-        uv run python -m datathon_decision.src.train_pipeline
+        # Capture metrics output
+        uv run python -m datathon_decision.src.train_pipeline > training_output.txt 2>&1
+
+        # Extract metrics to JSON
+        python -c "import json; import re; from datetime import datetime; f = open('training_output.txt', 'r'); output = f.read(); f.close(); accuracy_match = re.search(r'Acurácia: ([\\d.]+)', output); precision_match = re.search(r'Precisão: ([\\d.]+)', output); recall_match = re.search(r'Recall: ([\\d.]+)', output); f1_match = re.search(r'F1: ([\\d.]+)', output); roc_auc_match = re.search(r'ROC AUC: ([\\d.]+)', output); shapes_match = re.search(r'Shapes: X_train=\\((\\d+), (\\d+)\\)', output); metrics = {'timestamp': datetime.now().isoformat(), 'commit_sha': '${{ github.sha }}', 'branch': '${{ github.ref_name }}', 'accuracy': float(accuracy_match.group(1)) if accuracy_match else None, 'precision': float(precision_match.group(1)) if precision_match else None, 'recall': float(recall_match.group(1)) if recall_match else None, 'f1_score': float(f1_match.group(1)) if f1_match else None, 'roc_auc': float(roc_auc_match.group(1)) if roc_auc_match else None, 'train_samples': int(shapes_match.group(1)) if shapes_match else None, 'features_count': int(shapes_match.group(2)) if shapes_match else None}; json.dump(metrics, open('metrics.json', 'w'), indent=2); print(f'Metrics saved: {metrics}')"
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -89,16 +117,34 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Test Docker image health
+    - name: Upload metrics and logs
+      uses: actions/upload-artifact@v4
+      with:
+        name: training-metrics-${{ github.sha }}
+        path: |
+          metrics.json
+          training_output.txt
+        retention-days: 90
+
+    - name: Create metrics history
       run: |
-        # Pull the image that was just built
-        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        # Download previous metrics if they exist
+        mkdir -p metrics_history
         
-        # Run basic health check
-        docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest --help || true
+        # Add current metrics to history
+        if [ -f metrics.json ]; then
+          cp metrics.json metrics_history/metrics_${{ github.sha }}.json
+        fi
         
-        # You can add more specific health checks here
-        echo "Docker image health check passed!"
+        # Create simple HTML dashboard
+        python generate_dashboard.py
+
+    - name: Upload dashboard
+      uses: actions/upload-artifact@v4
+      with:
+        name: metrics-dashboard-${{ github.sha }}
+        path: dashboard.html
+        retention-days: 90
 
     - name: Deploy notification
       if: success()
