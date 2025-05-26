@@ -24,9 +24,15 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Instalar dependências (usando lock se existir)
 # RUN uv pip install --system flask flask-restx pandas scikit-learn joblib numpyx
-RUN uv pip install flask flask-restx pandas scikit-learn joblib numpy python-dateutil
+# RUN uv pip install flask flask-restx pandas scikit-learn joblib numpy python-dateutil
 
 # RUN uv pip install --system -e .
+
+# TENTATIVA DE INSTALAÇÃO MAIS FORTE:
+RUN echo "Attempting to install packages into venv: /opt/venv" && \
+    uv pip install flask flask-restx pandas scikit-learn joblib numpy python-dateutil && \
+    echo "Listing /opt/venv/lib/python3.12/site-packages/ after install:" && \
+    ls -l /opt/venv/lib/python3.12/site-packages/flask* 
 
 # === STAGE 2: Production ===
 FROM base AS production
@@ -35,8 +41,12 @@ FROM base AS production
 COPY --from=deps /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+RUN uv pip install flask flask-restx 
+
 # Instalar apenas gunicorn no ambiente final
 RUN pip install --no-cache-dir gunicorn==21.2.0
+
+RUN mkdir -p logs models data/processed data/raw
 
 # Criar diretórios necessários
 RUN mkdir -p logs models data/processed data/raw
@@ -48,6 +58,19 @@ USER app
 # Copiar código da aplicação
 COPY --chown=app:app datathon_decision/ ./datathon_decision/
 COPY --chown=app:app pyproject.toml ./
+
+# DEBUGGING COMO USUÁRIO 'app'
+RUN echo "DEBUGGING AS USER $(whoami) IN $(pwd)" && \
+    echo "PATH IS: $PATH" && \
+    echo "WHICH PYTHON: $(which python)" && \
+    echo "PYTHON VERSION: $(python --version)" && \
+    echo "WHICH GUNICORN: $(which gunicorn)" && \
+    echo "GUNICORN VERSION: $(gunicorn --version)" && \
+    echo "CHECKING FOR FLASK in /opt/venv/lib/python3.12/site-packages/:" && \
+    ls -l /opt/venv/lib/python3.12/site-packages/flask* && \
+    echo "TRYING TO IMPORT FLASK WITH PYTHON FROM VENV:" && \
+    /opt/venv/bin/python -c "import flask; print('Flask version:', flask.__version__)"
+
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
