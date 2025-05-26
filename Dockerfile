@@ -24,8 +24,7 @@ RUN uv venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Instalar dependências (usando lock se existir)
-RUN uv sync --no-dev || (uv pip install --system -r pyproject.toml && uv pip install --system -e .)
-# RUN uv sync --frozen --no-dev || uv pip install -e .
+RUN uv sync --no-dev 2>/dev/null || uv pip install flask flask-restx pandas scikit-learn joblib numpy python-dateutil
 
 # === STAGE 2: Production ===
 FROM base AS production
@@ -55,7 +54,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Labels para metadados
 LABEL org.opencontainers.image.title="Datathon Decision API"
 LABEL org.opencontainers.image.description="ML API for recruitment decisions"
-LABEL org.opencontainers.image.source="https://github.com/arthuraraujo/datathon"
+LABEL org.opencontainers.image.source="https://github.com/arthuraraujo/fiapdatathon"
 
 # Expor porta
 EXPOSE 5050
