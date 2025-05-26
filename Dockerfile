@@ -19,12 +19,14 @@ FROM base AS deps
 # Copiar apenas arquivos de dependências primeiro (melhor cache)
 COPY pyproject.toml uv.lock* ./
 
-# Instalar dependências em ambiente virtual
 RUN uv venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Instalar dependências (usando lock se existir)
-RUN uv sync --no-dev 2>/dev/null || uv pip install flask flask-restx pandas scikit-learn joblib numpy python-dateutil
+# RUN uv pip install --system flask flask-restx pandas scikit-learn joblib numpyx
+RUN uv pip install flask flask-restx pandas scikit-learn joblib numpy python-dateutil
+
+# RUN uv pip install --system -e .
 
 # === STAGE 2: Production ===
 FROM base AS production
