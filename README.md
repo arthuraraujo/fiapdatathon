@@ -17,6 +17,7 @@ Este projeto implementa uma solução baseada em Inteligência Artificial para o
 - [Monitoramento e Logs](#monitoramento-e-logs)
 - [Próximos Passos e Expansões](#próximos-passos-e-expansões)
 - [Troubleshooting](#troubleshooting)
+- [Gerenciamento de Arquivos Grandes](#gerenciamento-de-arquivos-grandes)
 - [Boas Práticas de Versionamento e Deploy](#boas-práticas-de-versionamento-e-deploy)
 
 ---
@@ -67,6 +68,7 @@ datathon-decision/
 ├── logs/                   # Logs da API
 ├── models/                 # Modelo salvo, pré-processador, colunas de treino
 ├── .gitignore
+├── .gitattributes          # Configuração do Git LFS
 ├── Dockerfile
 ├── pyproject.toml
 ├── README.md
@@ -94,29 +96,74 @@ datathon-decision/
 - Python 3.12
 - [UV](https://github.com/astral-sh/uv)
 - Docker Desktop
+- Git LFS (para arquivos grandes de dados)
 
-### Passos
+### Instalação do Git LFS
+
+**macOS:**
+```bash
+# Usando Homebrew
+brew install git-lfs
+
+# Ou baixar diretamente de: https://git-lfs.github.io/
+```
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt update
+sudo apt install git-lfs
+```
+
+**Windows:**
+```bash
+# Usando chocolatey
+choco install git-lfs
+
+# Ou baixar diretamente de: https://git-lfs.github.io/
+```
+
+### Passos de Configuração
 
 1. **Clone o repositório:**
    ```bash
-   git clone <url-do-seu-repositorio>
+   git clone https://github.com/arthuraraujo/fiapdatathon.git
    cd datathon-decision
    ```
-2. **Crie e ative o ambiente virtual:**
+
+2. **Configure o Git LFS (primeiro uso):**
+   ```bash
+   # Verificar se está instalado
+   git lfs version
+   
+   # Configurar LFS no repositório (se ainda não configurado)
+   git lfs install
+   
+   # Baixar arquivos LFS (se já existirem no repositório)
+   git lfs pull
+   ```
+
+3. **Crie e ative o ambiente virtual:**
    ```bash
    uv venv
    source .venv/bin/activate  # Linux/macOS
    # .venv\Scripts\activate    # Windows
    ```
-3. **Instale as dependências:**
+
+4. **Instale as dependências:**
    ```bash
    uv pip install -r pyproject.toml
    # ou, se empacotado:
    uv pip install .
    ```
-4. **Coloque os arquivos de dados:**
-   - Crie `data/raw/`
-   - Copie `applicants.json`, `prospects.json`, `vagas.json` para `data/raw/`
+
+5. **Verificar arquivos de dados:**
+   ```bash
+   # Verificar se os arquivos JSON estão disponíveis
+   ls -la data/raw/
+   
+   # Se não estiverem, eles serão baixados automaticamente pelo Git LFS
+   # durante o clone ou com git lfs pull
+   ```
 
 ---
 
@@ -255,28 +302,132 @@ bash test_api_examples.sh
 
 ## Troubleshooting
 
+### Problemas Comuns
+
 - **Porta em uso:** Altere a porta no Dockerfile/comando ou libere a 5050.
 - **Swagger não aparece:** Verifique se a API está rodando e acesse `/docs`.
 - **Problemas de dependências:** Use sempre UV e Python 3.12.
 - **Logs não aparecem:** Verifique permissões da pasta `logs/` e o volume no Docker.
 
+### Problemas com Git LFS
+
+- **Arquivos grandes não baixaram:** Execute `git lfs pull` para baixar arquivos LFS.
+- **Erro "git lfs not found":** Instale o Git LFS conforme instruções acima.
+- **Arquivos aparecem como ponteiros:** Certifique-se de que o Git LFS está configurado (`git lfs install`).
+- **Problemas de autenticação:** Configure suas credenciais do GitHub:
+  ```bash
+  git config --global credential.helper store
+  # ou use token de acesso pessoal
+  ```
+
+### Verificações de Git LFS
+
+```bash
+# Verificar status do LFS
+git lfs env
+
+# Listar arquivos rastreados pelo LFS
+git lfs ls-files
+
+# Verificar quais tipos de arquivo estão configurados
+cat .gitattributes
+```
+
 ---
 
-Para dúvidas, consulte a documentação Swagger em `/docs` ou abra uma issue no repositório.
+## Gerenciamento de Arquivos Grandes
+
+Este projeto utiliza **Git LFS (Large File Storage)** para gerenciar arquivos de dados grandes (>100MB) de forma eficiente.
+
+### Arquivos Gerenciados pelo LFS
+
+Os seguintes tipos de arquivo são automaticamente gerenciados pelo Git LFS:
+- `data/raw/*.json` - Dados brutos de treinamento
+- `*/data/raw/*.json` - Dados em subdiretórios
+
+### Comandos Úteis do Git LFS
+
+```bash
+# Verificar arquivos LFS
+git lfs ls-files
+
+# Baixar todos os arquivos LFS
+git lfs pull
+
+# Verificar status dos arquivos LFS
+git lfs status
+
+# Ver informações do repositório LFS
+git lfs env
+```
+
+### Para Desenvolvedores
+
+**Adicionando novos arquivos grandes:**
+```bash
+# Configurar tracking para novos tipos de arquivo
+git lfs track "*.pkl"
+git lfs track "models/*.joblib"
+
+# Adicionar configuração ao git
+git add .gitattributes
+git commit -m "Track new large files with LFS"
+
+# Adicionar os arquivos normalmente
+git add arquivo_grande.pkl
+git commit -m "Add large model file"
+git push
+```
+
+**Clonando o repositório:**
+```bash
+# Clone normal já baixa arquivos LFS automaticamente
+git clone <url-do-repositorio>
+
+# Se necessário, baixar arquivos LFS manualmente
+cd <repositorio>
+git lfs pull
+```
 
 ---
 
 ## Boas Práticas de Versionamento e Deploy
 
-- **Não versionar arquivos grandes (>50MB) ou sensíveis** no repositório.
-- **Dados brutos:** O diretório `data/raw/` pode ser versionado para manter a estrutura, mas **não adicione arquivos grandes** (ex: mantenha apenas exemplos pequenos ou arquivos de schema).
-- **Dados processados:** Não versionar `data/processed/`.
-- **Modelos treinados:** Não versionar arquivos em `models/*.joblib` ou `models/*.pkl`.
-- **Deploy:**
-  - Treine o modelo localmente e coloque o arquivo resultante em `models/`.
-  - Só então construa a imagem Docker, que irá empacotar o modelo junto com o código.
-  - Para compartilhar dados/modelos, utilize serviços externos (S3, Google Drive, etc).
+### Versionamento
+
+- **Arquivos grandes (>50MB):** Gerenciados automaticamente pelo Git LFS.
+- **Dados sensíveis:** Nunca versionar credenciais, tokens ou dados pessoais.
+- **Dados brutos:** Versionados via Git LFS em `data/raw/`.
+- **Dados processados:** Não versionar `data/processed/` (são gerados dinamicamente).
+- **Modelos treinados:** Não versionar `models/*.joblib` ou `models/*.pkl` (são gerados dinamicamente).
+
+### Deploy
+
+- **Desenvolvimento Local:** 
+  1. Clone o repositório (arquivos LFS baixam automaticamente)
+  2. Treine o modelo localmente
+  3. Execute a API para testes
+
+- **Deploy em Produção:**
+  1. Configure Git LFS no ambiente de CI/CD
+  2. Treine o modelo no pipeline
+  3. Construa a imagem Docker com modelo incluído
+  4. Deploy da imagem
+
+- **GitHub Actions:** 
+  ```yaml
+  - name: Checkout with LFS
+    uses: actions/checkout@v4
+    with:
+      lfs: true
+  ```
+
+### Compartilhamento de Dados
+
+Para compartilhar dados ou modelos grandes entre ambientes:
+- **Desenvolvimento:** Use Git LFS (incluído no repositório)
+- **Produção:** Considere serviços externos (S3, Google Cloud Storage, etc) para arquivos muito grandes (>1GB)
 
 ---
 
-Para dúvidas, consulte a documentação Swagger em `/docs` ou abra uma issue no repositório. 
+Para dúvidas, consulte a documentação Swagger em `/docs` ou abra uma issue no repositório.

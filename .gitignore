@@ -92,8 +92,6 @@ docs
 data/processed/
 # data/raw/
 # datathon_decision/data/raw
-data/raw/*.json
-*/data/raw/*.json
 */models/*
 */data/processed/*
 
