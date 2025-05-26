@@ -26,12 +26,14 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN echo "Attempting to install packages into venv: /opt/venv" && \
     uv pip install flask flask-restx pandas scikit-learn joblib numpy python-dateutil && \
     echo "Listing /opt/venv/lib/python3.12/site-packages/ after install:" && \
-    ls -l /opt/venv/lib/python3.12/site-packages/flask* # === STAGE 2: Production ===
-FROM base AS production # Lembre-se do WORKDIR /app herdado do base
+    ls -l /opt/venv/lib/python3.12/site-packages/flask*
+
+# === STAGE 2: Production ===
+# Lembre-se do WORKDIR /app herdado do base
+FROM base AS production
 
 COPY --from=deps /opt/venv /opt/venv
 
-# CORREÇÃO AQUI: Comentário movido para a linha anterior
 # Mantém o PATH configurado para o venv
 ENV PATH="/opt/venv/bin:$PATH"
 
