@@ -1,4 +1,20 @@
-# Datathon Decision - IA para Otimização de Recrutamento
+# Fase 5 - FIAP
+
+## **Grupo 24:**
+
+Nome: Arthur Francisco Araújo da Silva
+
+Nick(Discord): afaraujo
+
+RM: rm357855
+
+
+
+----
+---
+
+
+## Datathon Decision - IA para Otimização de Recrutamento
 
 Este projeto implementa uma solução baseada em Inteligência Artificial para otimizar o processo de recrutamento da Decision, aprimorando o "match" entre candidatos e vagas. Utiliza machine learning para prever a probabilidade de um candidato ser contratado para uma função específica, aprendendo com dados históricos de colocações bem-sucedidas e malsucedidas.
 
