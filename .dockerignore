@@ -16,7 +16,7 @@ trainingdata/
 *.ipynb_checkpoints
 *.joblib
 *.pkl
-uv.lock
+; uv.lock
 .Python
 env/
 venv/
