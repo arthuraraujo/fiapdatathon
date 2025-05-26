@@ -24,7 +24,8 @@ RUN uv venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Instalar dependências (usando lock se existir)
-RUN uv sync --frozen --no-dev || uv pip install -e .
+RUN uv sync --no-dev || uv pip install -e .  
+# RUN uv sync --frozen --no-dev || uv pip install -e .
 
 # === STAGE 2: Production ===
 FROM base AS production
@@ -36,6 +37,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Instalar apenas gunicorn no ambiente final
 RUN pip install --no-cache-dir gunicorn==21.2.0
 
+# Criar diretórios necessários
+RUN mkdir -p logs models data/processed data/raw
+
 # Criar usuário não-root para segurança
 RUN useradd --create-home --shell /bin/bash app
 USER app
@@ -43,9 +47,6 @@ USER app
 # Copiar código da aplicação
 COPY --chown=app:app datathon_decision/ ./datathon_decision/
 COPY --chown=app:app pyproject.toml ./
-
-# Criar diretórios necessários
-RUN mkdir -p logs models data/processed data/raw
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

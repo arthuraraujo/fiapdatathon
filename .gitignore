@@ -76,7 +76,7 @@ models/*.pkl
 logs/*
 
 # pyproject.toml lock file
-uv.lock
+# uv.lock
 
 # Additional rules
 tests/
