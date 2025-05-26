@@ -58,25 +58,7 @@ WORKDIR /app
 COPY --chown=app:app datathon_decision/ ./datathon_decision/
 COPY --chown=app:app pyproject.toml ./
 
-# Pré-compilar bytecode para economizar RAM na inicialização
-RUN python -m compileall -q datathon_decision/
 
-# Teste básico de importação
-RUN python -c "
-import sys
-import os
-print('Testing basic imports...')
-try:
-    import flask
-    print(f'✅ Flask: {flask.__version__}')
-    import pandas as pd
-    print(f'✅ Pandas: {pd.__version__}')
-    # Não importar o app completo aqui para economizar memória
-    print('✅ Basic imports successful')
-except Exception as e:
-    print(f'❌ Import error: {e}')
-    sys.exit(1)
-"
 
 # Health check com timeout maior
 HEALTHCHECK --interval=60s --timeout=30s --start-period=60s --retries=2 \
