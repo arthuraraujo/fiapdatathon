@@ -56,10 +56,12 @@ RUN useradd --create-home --shell /bin/bash app
 RUN chown -R app:app logs models data
 
 USER app
-WORKDIR /app # Definir WORKDIR após USER app
+# Definir WORKDIR após USER app
+WORKDIR /app
 
 COPY --chown=app:app datathon_decision/ ./datathon_decision/
-COPY --chown=app:app pyproject.toml ./ # Se o pyproject.toml for necessário em runtime
+# Se o pyproject.toml for necessário em runtime
+COPY --chown=app:app pyproject.toml ./
 
 # DEBUGGING COMO USUÁRIO 'app' (ajustado para verificar o gunicorn do venv)
 RUN echo "DEBUGGING AS USER $(whoami) IN $(pwd)" && \
