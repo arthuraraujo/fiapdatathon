@@ -20,13 +20,17 @@ FROM base AS deps
 COPY pyproject.toml uv.lock* ./
 
 RUN uv venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+ENV PATH="/opt/venv/bin:$PATH" # Set PATH for this stage, uv pip will use it
 
 # TENTATIVA DE INSTALAÇÃO MAIS FORTE:
-RUN echo "Attempting to install packages into venv: /opt/venv" && \
-    uv pip install flask flask-restx pandas scikit-learn joblib numpy python-dateutil && \
+# Install all Python dependencies, including gunicorn, in this stage
+RUN echo "Attempting to install packages (including gunicorn) into venv: /opt/venv" && \
+    uv pip install --no-cache-dir flask flask-restx pandas scikit-learn joblib numpy python-dateutil gunicorn==21.2.0 && \
     echo "Listing /opt/venv/lib/python3.12/site-packages/ after install:" && \
-    ls -l /opt/venv/lib/python3.12/site-packages/flask*
+    ls -l /opt/venv/lib/python3.12/site-packages/flask* && \
+    echo "Verifying gunicorn installation in deps stage:" && \
+    ls -l /opt/venv/bin/gunicorn && \
+    /opt/venv/bin/gunicorn --version
 
 # === STAGE 2: Production ===
 # Lembre-se do WORKDIR /app herdado do base
@@ -37,11 +41,12 @@ COPY --from=deps /opt/venv /opt/venv
 # Mantém o PATH configurado para o venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# 1. GARANTIR QUE GUNICORN SEJA INSTALADO NO VENV USANDO O PIP DO VENV
-RUN echo "Attempting to install gunicorn into venv: /opt/venv" && \
-    /opt/venv/bin/pip install --no-cache-dir gunicorn==21.2.0 && \
-    echo "Checking for gunicorn in venv:" && \
-    ls -l /opt/venv/bin/gunicorn
+# Gunicorn is already installed from the deps stage.
+# The original RUN command to install gunicorn (lines 41-44) is removed.
+# We can add a check to ensure it's present.
+RUN echo "Checking for gunicorn in copied venv:" && \
+    ls -l /opt/venv/bin/gunicorn && \
+    /opt/venv/bin/gunicorn --version || (echo "Gunicorn not found in /opt/venv/bin after copy!"; exit 1)
 
 RUN mkdir -p logs models data/processed data/raw
 # Dê permissão ao 'app' user para os diretórios que ele possa precisar escrever
@@ -60,11 +65,12 @@ RUN echo "DEBUGGING AS USER $(whoami) IN $(pwd)" && \
     echo "WHICH PYTHON: $(which python)" && \
     echo "PYTHON VERSION: $(python --version)" && \
     echo "WHICH PIP (should be venv): $(which pip)" && \
+    echo "PIP VERSION: $(pip --version)" && \
     echo "LOCATION OF GUNICORN (from which): $(which gunicorn)" && \
-    echo "LISTING /opt/venv/bin/gunicorn: " && ls -l /opt/venv/bin/gunicorn && \
-    echo "VERSION OF /opt/venv/bin/gunicorn: " && /opt/venv/bin/gunicorn --version && \
-    echo "TRYING TO IMPORT FLASK WITH PYTHON FROM VENV:" && \
-    /opt/venv/bin/python -c "import flask; print('Flask version:', flask.__version__)"
+    echo "LISTING /opt/venv/bin/gunicorn (as app user): " && ls -l /opt/venv/bin/gunicorn && \
+    echo "VERSION OF /opt/venv/bin/gunicorn (as app user): " && /opt/venv/bin/gunicorn --version && \
+    echo "TRYING TO IMPORT FLASK WITH PYTHON FROM VENV (as app user):" && \
+    python -c "import flask; print('Flask version:', flask.__version__)"
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:5050/api/health || exit 1
@@ -76,6 +82,8 @@ LABEL org.opencontainers.image.source="https://github.com/arthuraraujo/fiapdatat
 EXPOSE 5050
 
 # 2. CHAMAR EXPLICITAMENTE O GUNICORN DO VENV NO CMD
+# This is correct as PATH is set to include /opt/venv/bin,
+# but being explicit with /opt/venv/bin/gunicorn is safer.
 CMD ["/opt/venv/bin/gunicorn", \
      "--bind", "0.0.0.0:5050", \
      "--workers", "2", \
