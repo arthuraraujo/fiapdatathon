@@ -8,6 +8,9 @@ Nick(Discord): afaraujo
 
 RM: rm357855
 
+**Vídeo:** https://fiapdatathon.arthuraraujo.dev
+**Live API:** https://fiap-datathon.onrender.com/docs
+
 ---
 
 ---
