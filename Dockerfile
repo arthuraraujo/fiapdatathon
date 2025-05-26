@@ -24,7 +24,7 @@ RUN uv venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Instalar dependências (usando lock se existir)
-RUN uv sync --no-dev || uv pip install --editable .
+RUN uv sync --no-dev || (uv pip install --system -r pyproject.toml && uv pip install --system -e .)
 # RUN uv sync --frozen --no-dev || uv pip install -e .
 
 # === STAGE 2: Production ===
