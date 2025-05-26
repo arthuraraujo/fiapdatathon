@@ -16,7 +16,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: arthuraraujo/datathon
+  IMAGE_NAME: ${{ github.repository }} 
 
 jobs:
   build-and-deploy:
