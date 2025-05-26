@@ -42,17 +42,19 @@ COPY --from=deps /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Gunicorn is already installed from the deps stage.
-# The original RUN command to install gunicorn (lines 41-44) is removed.
 # We can add a check to ensure it's present.
 RUN echo "Checking for gunicorn in copied venv:" && \
     ls -l /opt/venv/bin/gunicorn && \
     /opt/venv/bin/gunicorn --version || (echo "Gunicorn not found in /opt/venv/bin after copy!"; exit 1)
 
 RUN mkdir -p logs models data/processed data/raw
-# Dê permissão ao 'app' user para os diretórios que ele possa precisar escrever
+
+# 1. Create the 'app' user FIRST
+RUN useradd --create-home --shell /bin/bash app
+
+# 2. THEN, give permission to the 'app' user for the directories
 RUN chown -R app:app logs models data
 
-RUN useradd --create-home --shell /bin/bash app
 USER app
 WORKDIR /app # Definir WORKDIR após USER app
 
